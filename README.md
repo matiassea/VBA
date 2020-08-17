@@ -353,11 +353,66 @@ End Sub
 ```
 
 
+## Concatenar segun condiciones
 
+```
+Sub concatenar_contrato_pais()
 
+Dim lastRow As Long
+Set ws = Worksheets("DB")
+lastRow = ws.Range("A" & Rows.Count).End(xlUp).Row 'conteo de columna
 
+Cells(1, 52).Value = "ID contrato - Pais" 'Donde va el titulo
+            Cells(1, 52).Font.Bold = True 'Donde va el titulo en negrita
 
+For i = 2 To lastRow
+If Len(Cells(i, 34)) > 0 Then
+    Cells(i, 52).Value = Cells(i, 34) & Cells(i, 35)
+Else
+    Cells(i, 52).Value = "Sin contrato"
+End If
+Next i
 
+End Sub
+
+```
+
+## Diccionary segun condicion inicial de celda y comparacion de item, el item es del tipo string
+
+```
+Sub conteo_contrato()
+
+Dim ws As Worksheet
+Dim lastRow As Long, x As Long
+Dim items As Object
+
+Application.ScreenUpdating = False
+  
+Set ws = Worksheets("DB")
+Cells(1, 53).Value = "Moneda ID contrato para igual proveedor" 'Donde va el titulo
+            Cells(1, 53).Font.Bold = True 'Donde va el titulo en negrita
+    
+lastRow = ws.Range("A" & Rows.Count).End(xlUp).Row 'conteo de columna
+    
+    Set items = CreateObject("Scripting.Dictionary")
+    For x = 2 To lastRow
+    If Cells(x, 52).Value <> "Sin contrato" Then 'para todos los que tienen contrato
+        If Not items.exists(ws.Cells(x, 52).Value) Then 'si no existe el key
+            items.Add ws.Cells(x, 52).Value, Cells(x, 42) 'A la key (52), adjunta el item (42)
+            ws.Cells(x, 53).Value = items(ws.Cells(x, 52).Value) 'Deja el item segun key en la (53)
+        Else                                                       'en caso que el item asociada la key exista
+            If items(ws.Cells(x, 52).Value) <> Cells(x, 42) Then 'Si, el valor item es distinto de moneda del contrato
+                ws.Cells(x, 53).Value = "Tiene moneda distinta" 'decir que tiene moneda distinta
+            Else
+                ws.Cells(x, 53).Value = "Tiene la misma moneda" 'decir que tiene igual moneda
+            End If
+        End If
+    Else
+        Cells(x, 51).Value = "-"
+    End If
+    Next x
+End Sub
+```
 
 
 
