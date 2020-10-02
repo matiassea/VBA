@@ -415,7 +415,48 @@ End Sub
 ```
 
 
+## Diccionary comparando primer item, en caso de ser mayor reemplazar
 
+```
+Sub conteo1()
 
+Dim ws As Worksheet
+Dim lastRow As Long, x As Long
+Dim items As Object
+
+Application.ScreenUpdating = False
+  
+Set ws = Worksheets("DB")
+Cells(1, 50).Value = "Fecha mas antigua ID Articulo" 'Donde va el titulo
+            Cells(1, 50).Font.Bold = True 'Donde va el titulo en negrita
+    
+lastRow = ws.Range("A" & Rows.Count).End(xlUp).Row 'conteo de columna
+    
+    Set items = CreateObject("Scripting.Dictionary")
+    For x = 2 To lastRow
+    If Cells(x, 49).Value <> "Sin proveedor" Then
+        If Not items.exists(ws.Cells(x, 49).Value) Then
+            items.Add ws.Cells(x, 49).Value, Cells(x, 6)
+        Else
+            If items(ws.Cells(x, 49).Value) > ws.Cells(x, 6).Value Then
+                items.Remove ws.Cells(x, 49).Value
+                items.Add ws.Cells(x, 49).Value, Cells(x, 6)
+                'ws.Cells(x, 50).Value = ws.Cells(x, 6) 'columna donde deja = columna de conteo columna 1
+            'ElseIf items(ws.Cells(x, 49).Value) < ws.Cells(x, 6).Value Then
+                'items.Add ws.Cells(x, 49).Value, items(ws.Cells(x, 49).Value)
+            End If
+        End If
+    End If
+    Next x
+    
+    For x = 2 To lastRow
+    If Cells(x, 49).Value <> "Sin proveedor" Then
+        ws.Cells(x, 50).Value = items(ws.Cells(x, 49).Value)
+    Else
+        Cells(x, 50).Value = "-"
+    End If
+    Next x
+End Sub
+```
 
 
