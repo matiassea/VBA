@@ -1,0 +1,984 @@
+Sub concatenar()
+
+Dim x As Integer
+Dim ws As Worksheet
+Worksheets("Base").Activate
+
+Set ws = Worksheets("Base")
+
+lastRow = ws.Range("A" & Rows.Count).End(xlUp).Row 'conteo de columna
+
+Cells(5, 28).Value = "Concatenado" 'Donde va el titulo
+            Cells(5, 28).Font.Bold = True 'Donde va el titulo en negrita
+            
+For x = 6 To lastRow
+
+Cells(x, 28) = Cells(x, 1) & Cells(x, 2)
+
+Next x
+Call countPO2
+End Sub
+
+Sub countPO2()
+Worksheets("Base").Activate
+
+Dim ws As Worksheet
+Dim lastRow As Long, x As Long
+Dim items As Object
+
+Application.ScreenUpdating = False
+  
+Set ws = Worksheets("Base")
+Cells(5, 29).Value = "Concatenado lineas" 'Donde va el titulo
+            Cells(5, 29).Font.Bold = True 'Donde va el titulo en negrita
+    
+lastRow = ws.Range("A" & Rows.Count).End(xlUp).Row 'conteo de columna
+    
+Set items = CreateObject("Scripting.Dictionary")
+For x = 6 To lastRow
+    If Not items.exists(ws.Cells(x, 28).Value) Then 'columna de conteo columna 1
+            items.Add ws.Cells(x, 28).Value, 1 'columna de conteo columna 1
+            ws.Cells(x, 29).Value = items(ws.Cells(x, 28).Value) 'columna donde deja = columna de conteo columna 1
+    Else
+            items(ws.Cells(x, 28).Value) = items(ws.Cells(x, 28).Value) + 1 'columna de conteo columna 1 = columna de conteo columna 1 + 1
+            ws.Cells(x, 29).Value = items(ws.Cells(x, 28).Value) 'columna donde deja = columna de conteo columna 1
+    End If
+Next x
+
+Call Tipo_de_compra
+End Sub
+
+Sub Tipo_de_compra()
+
+Dim x As Integer
+Dim ws As Worksheet
+
+Worksheets("Base").Activate
+Set ws = Worksheets("Base")
+
+lastRow = ws.Range("A" & Rows.Count).End(xlUp).Row 'conteo de columna
+
+Cells(5, 30).Value = "Tipo de compra" 'Donde va el titulo
+            Cells(5, 30).Font.Bold = True 'Donde va el titulo en negrita
+            
+For x = 6 To lastRow
+
+If Len(Cells(x, 13)) = 0 Then
+    Cells(x, 30) = "Sourcing"
+Else
+    Cells(x, 30) = "Contrato"
+End If
+
+Next x
+
+Call buscar_email
+
+End Sub
+Sub buscar_email()
+Dim Ultimate_Row35 As Integer
+
+Worksheets("Base").Activate
+Set ws = Worksheets("Base")
+lastRow = ws.Range("A" & Rows.Count).End(xlUp).Row 'conteo de columna
+
+Cells(5, 31).Value = "Reviewer" 'Donde va el titulo
+            Cells(5, 31).Font.Bold = True 'Donde va el titulo en negrita
+
+For i = 6 To lastRow
+    If IsError(Application.VLookup(Cells(i, 21), Worksheets("Subcategorias").Range("A2:D4000"), 4, False)) = False Then
+       Cells(i, 31) = Application.VLookup(Cells(i, 21), Worksheets("Subcategorias").Range("A2:D4000"), 4, False)
+    End If
+Next i
+
+'For i = 6 To lastRow
+'Select Case True
+
+'Case Cells(i, 1).Value = "CHL01"
+'    Cells(i, 31) = "Fernando Gonzalez"
+        
+'Case Cells(i, 1).Value = "CHL02"
+'    Cells(i, 31) = "Valeska Santos"
+        
+'Case Cells(i, 1).Value = "CHL04"
+'    Cells(i, 31) = "Manuel Nuñez"
+        
+'Case Cells(i, 1).Value = "CHL32"
+'    Cells(i, 31) = "Catalina Luza"
+              
+'Case Else
+'    Cells(i, 31) = "Ivan Chirino"
+    
+'End Select
+'Next i
+
+
+Call Calculo_de_dias
+
+End Sub
+Sub Calculo_de_dias()
+Dim Ultimate_Row35 As Integer
+
+Worksheets("Base").Activate
+Set ws = Worksheets("Base")
+lastRow = ws.Range("A" & Rows.Count).End(xlUp).Row 'conteo de columna
+
+Cells(5, 32).Value = "SLA" 'Donde va el titulo
+            Cells(5, 32).Font.Bold = True 'Donde va el titulo en negrita
+            
+            
+k = Date
+Set rngHolidays = Worksheets("Vacaciones CHL y PER").Range("A1:A100")
+For i = 6 To lastRow
+
+'Cells(i, 32) = "=DIAS.LAB(" & Cells(i, 25) & ",HOY())"
+Cells(i, 32) = Application.WorksheetFunction.NetworkDays(Cells(i, 25), k, rngHolidays) - 1
+'Cells(i, 32) = Worksheets("Base").NetworkDays(Cells(i, 25), k, ) - 1
+Next i
+
+Call Aprobador_duplicado
+
+End Sub
+Sub Aprobador_duplicado()
+Dim Ultimate_Row35 As Integer
+
+Worksheets("Base").Activate
+Set ws = Worksheets("Base")
+lastRow = ws.Range("A" & Rows.Count).End(xlUp).Row 'conteo de columna
+
+Cells(5, 33).Value = "Usuario aprobador" 'Donde va el titulo
+            Cells(5, 33).Font.Bold = True 'Donde va el titulo en negrita
+
+For i = 6 To lastRow
+Cells(i, 33) = Cells(i, 26)
+Next i
+
+Call Create_Pivot_OPEX
+
+End Sub
+
+
+Sub Create_Pivot_OPEX()
+
+'https://www.thespreadsheetguru.com/blog/2014/9/27/vba-guide-excel-pivot-tables
+'http://www.globaliconnect.com/excel/index.php?option=com_content&view=article&id=150:excel-pivot-tables-filter-data-items-values-a-dates-using-vba&catid=79&Itemid=475
+
+'Declare Variables
+Dim PSheet As Worksheet 'To create a sheet for a new pivot table.
+Dim DSheet As Worksheet 'To use as a data sheet.
+Dim PCache As PivotCache 'To use as a name for pivot table cache.
+Dim PTable As PivotTable 'To use as a name for our pivot table.
+Dim PRange As Range 'to define source data range.
+Dim lastRow9 As Long 'To get the last row and column of our data range.
+Dim LastCol9 As Long 'To get the last row and column of our data range.
+
+'Insert a New Blank Worksheet
+On Error Resume Next
+Application.DisplayAlerts = False
+Worksheets("OPEX").Delete
+Sheets.Add Before:=ActiveSheet
+ActiveSheet.Name = "OPEX"
+Application.DisplayAlerts = True
+Set PSheet = Worksheets("OPEX")
+Set DSheet = Worksheets("Base")
+
+
+'Define Data Range
+lastRow9 = DSheet.Cells(Rows.Count, 1).End(xlUp).Row
+LastCol9 = DSheet.Cells(5, Columns.Count).End(xlToLeft).Column
+Set PRange = DSheet.Cells(5, 1).Resize(lastRow9, LastCol9)
+
+'Define Pivot Cache
+Set PCache = ActiveWorkbook.PivotCaches.Create _
+(SourceType:=xlDatabase, SourceData:=PRange). _
+CreatePivotTable(TableDestination:=PSheet.Cells(2, 2), _
+TableName:="OPEX")
+
+'Insert Blank Pivot Table
+Set PTable = PCache.CreatePivotTable _
+(TableDestination:=PSheet.Cells(1, 1), TableName:="OPEX")
+
+'Insert Report Filter (estos son los filtros)
+
+Dim pItem As PivotItem
+With ActiveSheet.PivotTables("OPEX").PivotFields("Lista Usuarios Aprobador")
+.Orientation = xlPageField
+For Each pItem In .PivotItems
+   If pItem.Name = "LI_PV_WF_SPEND_CTL_TOWER_GBL" Or pItem.Name = "LI_PV_WF_SPEND_CTL_TOWER_GBL_2" Then
+       pItem.Visible = False
+   Else
+       pItem.Visible = True
+   End If
+Next
+.PivotItems("(blank)").Visible = False
+.Position = 5
+End With
+
+
+'Dim pItem2 As PivotItem
+'With ActiveSheet.PivotTables("OPEX").PivotFields("Solicitante")
+'.Orientation = xlPageField
+'For Each pItem2 In .PivotItems
+'   If pItem2.Name = "311800249" Or pItem2.Name = "311800235" Or pItem2.Name = "311800186" Or pItem2.Name = "311800250" Then
+'       pItem2.Visible = False
+'   Else
+'       pItem2.Visible = True
+'   End If
+'Next
+'.PivotItems("(blank)").Visible = False
+'.Position = 4
+'End With
+
+Dim pItem2 As PivotItem
+With ActiveSheet.PivotTables("OPEX").PivotFields("Unidad Negocio")
+.Orientation = xlPageField
+For Each pItem2 In .PivotItems
+   If pItem2.Name = "CHL01" Or pItem2.Name = "CHL02" Or pItem2.Name = "CHL04" Or pItem2.Name = "CHL08" Or pItem2.Name = "CHL06" Or pItem2.Name = "CHL32" Then
+       pItem2.Visible = False
+   Else
+       pItem2.Visible = True
+   End If
+Next
+.PivotItems("(blank)").Visible = False
+.Position = 4
+End With
+
+
+With ActiveSheet.PivotTables("OPEX").PivotFields("Concatenado lineas")
+.Orientation = xlPageField
+.PivotItems("1").Visible = True
+        For i = 2 To .PivotItems.Count
+            With .PivotItems(i)
+                If i > 1 Then
+                    .Visible = False
+                End If
+            End With
+        Next i
+.Position = 3
+End With
+
+With ActiveSheet.PivotTables("OPEX").PivotFields("Cuenta")
+.Orientation = xlPageField
+.PivotItems("1500100").Visible = False
+.PivotItems("1510000").Visible = False
+.PivotItems("1500200").Visible = False
+.PivotItems("1500300").Visible = False
+.PivotItems("1500400").Visible = False
+.PivotItems("1707100").Visible = False
+.PivotItems("1707105").Visible = False
+.PivotItems("(blank)").Visible = False
+'.PivotItems("(blank)").Visible = False
+.Position = 2
+End With
+
+
+With ActiveSheet.PivotTables("OPEX").PivotFields("Tipo de compra")
+.Orientation = xlPageField
+'.PivotItems("Catalogo").Visible = True
+.PivotItems("Contrato").Visible = False
+.PivotItems("Sourcing").Visible = True
+.PivotItems("(blank)").Visible = False
+'.PivotItems("(blank)").Visible = False
+.Position = 1
+End With
+
+
+'Insert Column Fields  (estos son las columnas)
+
+With ActiveSheet.PivotTables("OPEX").PivotFields("SLA")
+.Orientation = xlColumnField
+.Position = 1
+.PivotItems("(blank)").Visible = False
+.Subtotals(1) = False
+End With
+
+'Insert Row Labels (estos son las filas)
+With ActiveSheet.PivotTables("OPEX").PivotFields("Reviewer")
+.Orientation = xlRowField
+'.PivotItems("").Visible = False
+'.PivotItems("(blank)").Visible = False
+'.PivotItems("OC Realizada").Visible = False
+.Position = 1
+.Subtotals(1) = False
+End With
+
+'Insert Data Field (estos son las valores)
+With ActiveSheet.PivotTables("OPEX").PivotFields("Concatenado lineas")
+.Orientation = xlDataField
+.Position = 1
+.Function = xlCount
+.NumberFormat = "#,##0"
+End With
+
+'http://www.globaliconnect.com/excel/index.php?option=com_content&view=article&id=150:excel-pivot-tables-filter-data-items-values-a-dates-using-vba&catid=79&Itemid=475
+
+'Format Pivot Table
+'ActiveSheet.PivotTables("SalesPivotTable").ShowTableStyleRowStripes = True
+'ActiveSheet.PivotTables("SalesPivotTable").TableStyle2 = "PivotStyleMedium9"
+Call Create_Pivot_CAPEX
+End Sub
+
+Sub Create_Pivot_CAPEX()
+
+'https://www.thespreadsheetguru.com/blog/2014/9/27/vba-guide-excel-pivot-tables
+'http://www.globaliconnect.com/excel/index.php?option=com_content&view=article&id=150:excel-pivot-tables-filter-data-items-values-a-dates-using-vba&catid=79&Itemid=475
+
+'Declare Variables
+Dim PSheet As Worksheet 'To create a sheet for a new pivot table.
+Dim DSheet As Worksheet 'To use as a data sheet.
+Dim PCache As PivotCache 'To use as a name for pivot table cache.
+Dim PTable As PivotTable 'To use as a name for our pivot table.
+Dim PRange As Range 'to define source data range.
+Dim lastRow9 As Long 'To get the last row and column of our data range.
+Dim LastCol9 As Long 'To get the last row and column of our data range.
+
+'Insert a New Blank Worksheet
+On Error Resume Next
+Application.DisplayAlerts = False
+Worksheets("CAPEX").Delete
+Sheets.Add Before:=ActiveSheet
+ActiveSheet.Name = "CAPEX"
+Application.DisplayAlerts = True
+Set PSheet = Worksheets("CAPEX")
+Set DSheet = Worksheets("Base")
+
+'Define Data Range
+lastRow9 = DSheet.Cells(Rows.Count, 1).End(xlUp).Row
+LastCol9 = DSheet.Cells(5, Columns.Count).End(xlToLeft).Column
+Set PRange = DSheet.Cells(5, 1).Resize(lastRow9, LastCol9)
+
+'Define Pivot Cache
+Set PCache = ActiveWorkbook.PivotCaches.Create _
+(SourceType:=xlDatabase, SourceData:=PRange). _
+CreatePivotTable(TableDestination:=PSheet.Cells(2, 2), _
+TableName:="CAPEX")
+
+'Insert Blank Pivot Table
+Set PTable = PCache.CreatePivotTable _
+(TableDestination:=PSheet.Cells(1, 1), TableName:="CAPEX")
+
+
+
+'Insert Report Filter (estos son los filtros)
+
+Dim pItem As PivotItem
+With ActiveSheet.PivotTables("CAPEX").PivotFields("Lista Usuarios Aprobador")
+.Orientation = xlPageField
+For Each pItem In .PivotItems
+   If pItem.Name = "LI_PV_WF_SPEND_CTL_TOWER_GBL" Or pItem.Name = "LI_PV_WF_SPEND_CTL_TOWER_GBL_2" Then
+       pItem.Visible = False
+   Else
+       pItem.Visible = True
+   End If
+Next
+.PivotItems("(blank)").Visible = False
+.Position = 5
+End With
+
+'Dim pItem2 As PivotItem
+'With ActiveSheet.PivotTables("CAPEX").PivotFields("Solicitante")
+'.Orientation = xlPageField
+'For Each pItem2 In .PivotItems
+'   If pItem2.Name = "311800249" Or pItem2.Name = "311800235" Or pItem2.Name = "311800186" Or pItem2.Name = "311800250" Then
+'       pItem2.Visible = False
+'   Else
+'       pItem2.Visible = True
+'   End If
+'Next
+'.PivotItems("(blank)").Visible = False
+'.Position = 4
+'End With
+
+Dim pItem2 As PivotItem
+With ActiveSheet.PivotTables("CAPEX").PivotFields("Unidad Negocio")
+.Orientation = xlPageField
+For Each pItem2 In .PivotItems
+   If pItem2.Name = "CHL01" Or pItem2.Name = "CHL02" Or pItem2.Name = "CHL04" Or pItem2.Name = "CHL08" Or pItem2.Name = "CHL06" Or pItem2.Name = "CHL32" Then
+       pItem2.Visible = False
+   Else
+       pItem2.Visible = True
+   End If
+Next
+.PivotItems("(blank)").Visible = False
+.Position = 4
+End With
+
+
+With ActiveSheet.PivotTables("CAPEX").PivotFields("Concatenado lineas")
+.Orientation = xlPageField
+.PivotItems("1").Visible = True
+        For i = 2 To .PivotItems.Count
+            With .PivotItems(i)
+                If i > 1 Then
+                    .Visible = False
+                End If
+            End With
+        Next i
+.Position = 3
+End With
+
+Dim pItem3 As PivotItem
+With ActiveSheet.PivotTables("CAPEX").PivotFields("Cuenta")
+.Orientation = xlPageField
+For Each pItem3 In .PivotItems
+   If pItem3.Name = "1500100" Or pItem3.Name = "1510000" Or pItem3.Name = "1500200" Or pItem3.Name = "1500300" Or pItem3.Name = "1500400" Or pItem3.Name = "1707100" Or pItem3.Name = "1707105" Then
+       pItem3.Visible = True
+   Else
+       pItem3.Visible = False
+   End If
+Next
+.PivotItems("(blank)").Visible = False
+.Position = 2
+End With
+
+
+With ActiveSheet.PivotTables("CAPEX").PivotFields("Tipo de compra")
+.Orientation = xlPageField
+'.PivotItems("Catalogo").Visible = True
+.PivotItems("Contrato").Visible = False
+.PivotItems("Sourcing").Visible = True
+'.PivotItems("(blank)").Visible = False
+.Position = 1
+End With
+
+
+
+
+'Insert Column Fields  (estos son las columnas)
+
+With ActiveSheet.PivotTables("CAPEX").PivotFields("SLA")
+.Orientation = xlColumnField
+.Position = 1
+.PivotItems("(blank)").Visible = False
+.Subtotals(1) = False
+End With
+
+'Insert Row Labels (estos son las filas)
+With ActiveSheet.PivotTables("CAPEX").PivotFields("Reviewer")
+.Orientation = xlRowField
+'.PivotItems("").Visible = False
+'.PivotItems("(blank)").Visible = False
+'.PivotItems("OC Realizada").Visible = False
+.Position = 1
+.Subtotals(1) = False
+End With
+
+'Insert Data Field (estos son las valores)
+With ActiveSheet.PivotTables("CAPEX").PivotFields("Concatenado lineas")
+.Orientation = xlDataField
+.Position = 1
+.Function = xlCount
+.NumberFormat = "#,##0"
+End With
+
+'http://www.globaliconnect.com/excel/index.php?option=com_content&view=article&id=150:excel-pivot-tables-filter-data-items-values-a-dates-using-vba&catid=79&Itemid=475
+
+'Format Pivot Table
+'ActiveSheet.PivotTables("SalesPivotTable").ShowTableStyleRowStripes = True
+'ActiveSheet.PivotTables("SalesPivotTable").TableStyle2 = "PivotStyleMedium9"
+'Call Implant
+Call Resumen_Pivot
+End Sub
+
+Sub Implant()
+
+'https://www.thespreadsheetguru.com/blog/2014/9/27/vba-guide-excel-pivot-tables
+'http://www.globaliconnect.com/excel/index.php?option=com_content&view=article&id=150:excel-pivot-tables-filter-data-items-values-a-dates-using-vba&catid=79&Itemid=475
+
+'Declare Variables
+Dim PSheet As Worksheet 'To create a sheet for a new pivot table.
+Dim DSheet As Worksheet 'To use as a data sheet.
+Dim PCache As PivotCache 'To use as a name for pivot table cache.
+Dim PTable As PivotTable 'To use as a name for our pivot table.
+Dim PRange As Range 'to define source data range.
+Dim lastRow9 As Long 'To get the last row and column of our data range.
+Dim LastCol9 As Long 'To get the last row and column of our data range.
+
+'Insert a New Blank Worksheet
+On Error Resume Next
+Application.DisplayAlerts = False
+Worksheets("Implant").Delete
+Sheets.Add Before:=ActiveSheet
+ActiveSheet.Name = "Implant"
+Application.DisplayAlerts = True
+Set PSheet = Worksheets("Implant")
+Set DSheet = Worksheets("Base")
+
+
+'Define Data Range
+lastRow9 = DSheet.Cells(Rows.Count, 1).End(xlUp).Row
+LastCol9 = DSheet.Cells(5, Columns.Count).End(xlToLeft).Column
+Set PRange = DSheet.Cells(5, 1).Resize(lastRow9, LastCol9)
+
+'Define Pivot Cache
+Set PCache = ActiveWorkbook.PivotCaches.Create _
+(SourceType:=xlDatabase, SourceData:=PRange). _
+CreatePivotTable(TableDestination:=PSheet.Cells(2, 2), _
+TableName:="Implant")
+
+'Insert Blank Pivot Table
+Set PTable = PCache.CreatePivotTable _
+(TableDestination:=PSheet.Cells(1, 1), TableName:="Implant")
+
+'Insert Report Filter (estos son los filtros)
+Dim pItem As PivotItem
+With ActiveSheet.PivotTables("Implant").PivotFields("Lista Usuarios Aprobador")
+.Orientation = xlPageField
+For Each pItem In .PivotItems
+   If pItem.Name = "LI_PV_WF_SPEND_CTL_TOWER_GBL" Or pItem.Name = "LI_PV_WF_SPEND_CTL_TOWER_GBL_2" Then
+       pItem.Visible = False
+   Else
+       pItem.Visible = True
+   End If
+Next
+.PivotItems("(blank)").Visible = False
+.Position = 4
+End With
+
+
+With ActiveSheet.PivotTables("Implant").PivotFields("Concatenado lineas")
+.Orientation = xlPageField
+.PivotItems("1").Visible = True
+        For i = 2 To .PivotItems.Count
+            With .PivotItems(i)
+                If i > 1 Then
+                    .Visible = False
+                End If
+            End With
+        Next i
+.Position = 3
+End With
+
+Dim pItem2 As PivotItem
+With ActiveSheet.PivotTables("Implant").PivotFields("Solicitante")
+.Orientation = xlPageField
+For Each pItem2 In .PivotItems
+   If pItem2.Name = "311800249" Or pItem2.Name = "311800235" Or pItem2.Name = "311800186" Or pItem2.Name = "311800250" Then
+       pItem2.Visible = True
+   Else
+       pItem2.Visible = False
+   End If
+Next
+.PivotItems("(blank)").Visible = False
+.Position = 2
+End With
+
+
+
+With ActiveSheet.PivotTables("Implant").PivotFields("Tipo de compra")
+.Orientation = xlPageField
+'.PivotItems("Catalogo").Visible = True
+.PivotItems("Contrato").Visible = False
+.PivotItems("Sourcing").Visible = True
+.PivotItems("(blank)").Visible = False
+'.PivotItems("(blank)").Visible = False
+.Position = 1
+End With
+
+
+
+'Insert Column Fields  (estos son las columnas)
+
+With ActiveSheet.PivotTables("Implant").PivotFields("SLA")
+.Orientation = xlColumnField
+.Position = 1
+.PivotItems("(blank)").Visible = False
+.Subtotals(1) = False
+End With
+
+'Insert Row Labels (estos son las filas)
+With ActiveSheet.PivotTables("Implant").PivotFields("Reviewer")
+.Orientation = xlRowField
+'.PivotItems("").Visible = False
+'.PivotItems("(blank)").Visible = False
+'.PivotItems("OC Realizada").Visible = False
+.Position = 1
+.Subtotals(1) = False
+End With
+
+'Insert Data Field (estos son las valores)
+With ActiveSheet.PivotTables("Implant").PivotFields("Concatenado lineas")
+.Orientation = xlDataField
+.Position = 1
+.Function = xlCount
+.NumberFormat = "#,##0"
+End With
+
+'http://www.globaliconnect.com/excel/index.php?option=com_content&view=article&id=150:excel-pivot-tables-filter-data-items-values-a-dates-using-vba&catid=79&Itemid=475
+
+'Format Pivot Table
+'ActiveSheet.PivotTables("SalesPivotTable").ShowTableStyleRowStripes = True
+'ActiveSheet.PivotTables("SalesPivotTable").TableStyle2 = "PivotStyleMedium9"
+'Call Resumen_Pivot
+End Sub
+
+Sub Tower()
+
+'https://www.thespreadsheetguru.com/blog/2014/9/27/vba-guide-excel-pivot-tables
+'http://www.globaliconnect.com/excel/index.php?option=com_content&view=article&id=150:excel-pivot-tables-filter-data-items-values-a-dates-using-vba&catid=79&Itemid=475
+
+'Declare Variables
+Dim PSheet As Worksheet 'To create a sheet for a new pivot table.
+Dim DSheet As Worksheet 'To use as a data sheet.
+Dim PCache As PivotCache 'To use as a name for pivot table cache.
+Dim PTable As PivotTable 'To use as a name for our pivot table.
+Dim PRange As Range 'to define source data range.
+Dim lastRow9 As Long 'To get the last row and column of our data range.
+Dim LastCol9 As Long 'To get the last row and column of our data range.
+
+'Insert a New Blank Worksheet
+On Error Resume Next
+Application.DisplayAlerts = False
+Worksheets("Tower").Delete
+Sheets.Add Before:=ActiveSheet
+ActiveSheet.Name = "Tower"
+Application.DisplayAlerts = True
+Set PSheet = Worksheets("Tower")
+Set DSheet = Worksheets("Base")
+
+
+'Define Data Range
+lastRow9 = DSheet.Cells(Rows.Count, 1).End(xlUp).Row
+LastCol9 = DSheet.Cells(5, Columns.Count).End(xlToLeft).Column
+Set PRange = DSheet.Cells(5, 1).Resize(lastRow9, LastCol9)
+
+'Define Pivot Cache
+Set PCache = ActiveWorkbook.PivotCaches.Create _
+(SourceType:=xlDatabase, SourceData:=PRange). _
+CreatePivotTable(TableDestination:=PSheet.Cells(2, 2), _
+TableName:="Tower")
+
+'Insert Blank Pivot Table
+Set PTable = PCache.CreatePivotTable _
+(TableDestination:=PSheet.Cells(1, 1), TableName:="Tower")
+
+'Insert Report Filter (estos son los filtros)
+
+
+
+Dim pItem As PivotItem
+With ActiveSheet.PivotTables("Tower").PivotFields("Solicitante")
+.Orientation = xlPageField
+For Each pItem In .PivotItems
+   If pItem.Name = "311800249" Or pItem.Name = "311800235" Or pItem.Name = "311800186" Or pItem.Name = "311800250" Then
+       pItem.Visible = False
+   Else
+       pItem.Visible = True
+   End If
+Next
+.PivotItems("(blank)").Visible = False
+.Position = 4
+End With
+
+
+
+With ActiveSheet.PivotTables("Tower").PivotFields("Concatenado lineas")
+.Orientation = xlPageField
+.PivotItems("1").Visible = True
+        For i = 2 To .PivotItems.Count
+            With .PivotItems(i)
+                If i > 1 Then
+                    .Visible = False
+                End If
+            End With
+        Next i
+.Position = 3
+End With
+
+Dim pItem2 As PivotItem
+With ActiveSheet.PivotTables("Tower").PivotFields("Lista Usuarios Aprobador")
+.Orientation = xlPageField
+For Each pItem2 In .PivotItems
+   If pItem2.Name = "LI_PV_WF_SPEND_CTL_TOWER_GBL" Or pItem2.Name = "LI_PV_WF_SPEND_CTL_TOWER_GBL_2" Then
+       pItem2.Visible = True
+   Else
+       pItem2.Visible = False
+   End If
+Next
+.PivotItems("(blank)").Visible = False
+.Position = 2
+End With
+
+
+
+With ActiveSheet.PivotTables("Tower").PivotFields("Tipo de compra")
+.Orientation = xlPageField
+'.PivotItems("Catalogo").Visible = True
+.PivotItems("Contrato").Visible = False
+.PivotItems("Sourcing").Visible = True
+.PivotItems("(blank)").Visible = False
+'.PivotItems("(blank)").Visible = False
+.Position = 1
+End With
+
+'With ActiveSheet.PivotTables("Resumen").PivotFields("Area de compra")
+'.Orientation = xlPageField
+'.PivotItems("COE").Visible = False
+'.PivotItems("Compras").Visible = False
+'.PivotItems("Gestion PO").Visible = True
+'.PivotItems("(blank)").Visible = False
+'.Position = 1
+'End With
+
+
+'Insert Column Fields  (estos son las columnas)
+
+With ActiveSheet.PivotTables("Tower").PivotFields("SLA")
+.Orientation = xlColumnField
+.Position = 1
+.PivotItems("(blank)").Visible = False
+.Subtotals(1) = False
+End With
+
+'Insert Row Labels (estos son las filas)
+With ActiveSheet.PivotTables("Tower").PivotFields("Reviewer")
+.Orientation = xlRowField
+'.PivotItems("").Visible = False
+'.PivotItems("(blank)").Visible = False
+'.PivotItems("OC Realizada").Visible = False
+.Position = 1
+.Subtotals(1) = False
+End With
+
+'Insert Data Field (estos son las valores)
+With ActiveSheet.PivotTables("Tower").PivotFields("Concatenado lineas")
+.Orientation = xlDataField
+.Position = 1
+.Function = xlCount
+.NumberFormat = "#,##0"
+End With
+
+'http://www.globaliconnect.com/excel/index.php?option=com_content&view=article&id=150:excel-pivot-tables-filter-data-items-values-a-dates-using-vba&catid=79&Itemid=475
+
+'Format Pivot Table
+'ActiveSheet.PivotTables("SalesPivotTable").ShowTableStyleRowStripes = True
+'ActiveSheet.PivotTables("SalesPivotTable").TableStyle2 = "PivotStyleMedium9"
+
+'Call Resumen_Pivot
+End Sub
+
+Sub Resumen_Pivot()
+
+'https://www.thespreadsheetguru.com/blog/2014/9/27/vba-guide-excel-pivot-tables
+'http://www.globaliconnect.com/excel/index.php?option=com_content&view=article&id=150:excel-pivot-tables-filter-data-items-values-a-dates-using-vba&catid=79&Itemid=475
+
+'Declare Variables
+Dim PSheet As Worksheet 'To create a sheet for a new pivot table.
+Dim DSheet As Worksheet 'To use as a data sheet.
+Dim PCache As PivotCache 'To use as a name for pivot table cache.
+Dim PTable As PivotTable 'To use as a name for our pivot table.
+Dim PRange As Range 'to define source data range.
+Dim lastRow9 As Long 'To get the last row and column of our data range.
+Dim LastCol9 As Long 'To get the last row and column of our data range.
+
+'Insert a New Blank Worksheet
+On Error Resume Next
+Application.DisplayAlerts = False
+Worksheets("Resumen").Delete
+Sheets.Add Before:=ActiveSheet
+ActiveSheet.Name = "Resumen"
+Application.DisplayAlerts = True
+Set PSheet = Worksheets("Resumen")
+Set DSheet = Worksheets("Base")
+
+
+'Define Data Range
+lastRow9 = DSheet.Cells(Rows.Count, 1).End(xlUp).Row
+LastCol9 = DSheet.Cells(5, Columns.Count).End(xlToLeft).Column
+Set PRange = DSheet.Cells(5, 1).Resize(lastRow9, LastCol9)
+
+'Define Pivot Cache
+Set PCache = ActiveWorkbook.PivotCaches.Create _
+(SourceType:=xlDatabase, SourceData:=PRange). _
+CreatePivotTable(TableDestination:=PSheet.Cells(2, 2), _
+TableName:="Resumen")
+
+'Insert Blank Pivot Table
+Set PTable = PCache.CreatePivotTable _
+(TableDestination:=PSheet.Cells(1, 1), TableName:="Resumen")
+
+Dim pItem2 As PivotItem
+With ActiveSheet.PivotTables("Resumen").PivotFields("Unidad Negocio")
+.Orientation = xlPageField
+For Each pItem2 In .PivotItems
+   If pItem2.Name = "CHL01" Or pItem2.Name = "CHL02" Or pItem2.Name = "CHL04" Or pItem2.Name = "CHL08" Or pItem2.Name = "CHL06" Or pItem2.Name = "CHL32" Then
+       pItem2.Visible = False
+   Else
+       pItem2.Visible = True
+   End If
+Next
+.PivotItems("(blank)").Visible = False
+.Position = 4
+End With
+
+
+'Dim pItem2 As PivotItem
+'With ActiveSheet.PivotTables("Resumen").PivotFields("Lista Usuarios Aprobador")
+'.Orientation = xlPageField
+'For Each pItem2 In .PivotItems
+'   If pItem2.Name = "LI_PV_WF_SPEND_CTL_TOWER_GBL" Or pItem2.Name = "LI_PV_WF_SPEND_CTL_TOWER_GBL_2" Then
+'       pItem2.Visible = False
+'   Else
+'       pItem2.Visible = True
+'   End If
+'Next
+'.PivotItems("(blank)").Visible = False
+'.Position = 3
+'End With
+
+
+With ActiveSheet.PivotTables("Resumen").PivotFields("Concatenado lineas")
+.Orientation = xlPageField
+.PivotItems("1").Visible = True
+        For i = 2 To .PivotItems.Count
+            With .PivotItems(i)
+                If i > 1 Then
+                    .Visible = False
+                End If
+            End With
+        Next i
+.Position = 2
+End With
+
+With ActiveSheet.PivotTables("Resumen").PivotFields("Tipo de compra")
+.Orientation = xlPageField
+'.PivotItems("Catalogo").Visible = True
+.PivotItems("Contrato").Visible = False
+.PivotItems("Sourcing").Visible = True
+.PivotItems("(blank)").Visible = False
+'.PivotItems("(blank)").Visible = False
+.Position = 1
+End With
+
+'Insert Column Fields  (estos son las columnas)
+
+With ActiveSheet.PivotTables("Resumen").PivotFields("SLA")
+.Orientation = xlColumnField
+.Position = 1
+.PivotItems("(blank)").Visible = False
+.Subtotals(1) = False
+End With
+
+'Insert Row Labels (estos son las filas)
+With ActiveSheet.PivotTables("Resumen").PivotFields("Reviewer")
+.Orientation = xlRowField
+.Position = 1
+.Subtotals(1) = False
+End With
+
+'Insert Data Field (estos son las valores)
+With ActiveSheet.PivotTables("Resumen").PivotFields("Concatenado lineas")
+.Orientation = xlDataField
+.Position = 1
+.Function = xlCount
+.NumberFormat = "#,##0"
+End With
+
+'http://www.globaliconnect.com/excel/index.php?option=com_content&view=article&id=150:excel-pivot-tables-filter-data-items-values-a-dates-using-vba&catid=79&Itemid=475
+
+'Format Pivot Table
+'ActiveSheet.PivotTables("SalesPivotTable").ShowTableStyleRowStripes = True
+'ActiveSheet.PivotTables("SalesPivotTable").TableStyle2 = "PivotStyleMedium9"
+
+Call Dictionary_Solicitudes_Atrasadas
+
+End Sub
+
+Sub Dictionary_Solicitudes_Atrasadas()
+    'https://excelmacromastery.com/vba-dictionary/
+    Dim sh As Worksheet
+    Dim sh2 As Worksheet
+    Dim lastRow As Long
+    Dim lastRow2 As Long
+    Dim dict As Object
+    Dim dict2 As Object
+    Dim i As Long
+    Dim Contents As Variant
+    Dim Contents2 As Variant
+
+    'Copiamos la columna de los tower
+    
+
+    'Insert a New Blank Worksheet
+    On Error Resume Next
+    Application.DisplayAlerts = False
+    Worksheets("Solicitudes fuera de SLA").Delete
+    Sheets.Add Before:=ActiveSheet
+    ActiveSheet.Name = "Solicitudes fuera de SLA"
+    Application.DisplayAlerts = True
+
+    Set sh = Worksheets("Base")
+    lastRow = sh.Range("A" & Rows.Count).End(xlUp).Row 'conteo de columna
+    
+    Set dict = CreateObject("Scripting.Dictionary") 'Create(late binding)
+    dict.CompareMode = vbTextCompare 'Make key non case sensitive (the dictionary must be empty)
+    Contents = sh.Range("AB5:AG" & lastRow).Value 'Campo donde esta la informacion
+    
+    Set dict2 = CreateObject("Scripting.Dictionary") 'Create(late binding)
+    dict2.CompareMode = vbTextCompare 'Make key non case sensitive (the dictionary must be empty)
+    Contents2 = sh.Range("AB5:AE" & lastRow).Value 'Campo donde esta la informacion
+    
+    For i = 2 To UBound(Contents, 1)
+    'If sh.Cells(i, 32) > 2 And sh.Cells(i, 29) = 1 Then
+    If (Contents(i, 5)) > 2 And (Contents(i, 2)) = 1 And (Contents(i, 3)) <> "Contrato" And (Contents(i, 6)) <> "LI_PV_WF_SPEND_CTL_TOWER_GBL" And (Contents(i, 6)) <> "LI_PV_WF_SPEND_CTL_TOWER_GBL_2" And InStr(Contents(i, 1), "CHL02") = 0 And InStr(Contents(i, 1), "CHL01") = 0 And InStr(Contents(i, 1), "CHL08") = 0 And InStr(Contents(i, 1), "CHL32") = 0 And InStr(Contents(i, 1), "CHL04") = 0 Then
+        If Not dict.exists(Contents(i, 1)) Then 'La columna H, sera la columna comparativa
+            dict.Add Contents(i, 1), Contents(i, 5) 'concatenado y SLA
+            dict2.Add Contents(i, 1), Contents(i, 4) 'concatenado y reviewer
+        End If
+    End If
+    'Debug.Print ("Fila " & i & " - " & sh.Cells(i, 29) & " - " & sh.Cells(i, 32))
+    'Debug.Print (Contents(i, 1))
+    Next i
+    Debug.Print (dict.Count)
+    Debug.Print (dict2.Count)
+    
+    Worksheets("Solicitudes fuera de SLA").Activate
+    Set sh2 = Worksheets("Solicitudes fuera de SLA")
+    lastRow2 = sh2.Range("A" & Rows.Count).End(xlUp).Row 'conteo de columna
+    'Contents = sh2.Range("A1:L" & lastRow).Value 'Campo donde esta la informacion
+    
+    sh2.Cells(1, 1).Value = "Key" 'Donde va el titulo
+            sh2.Cells(1, 1).Font.Bold = True 'Donde va el titulo en negrita
+               
+    'Debug.Print (dict.Count - 1)
+    a = dict.keys               'Get the keys
+    b = dict.Count - 1
+    For i = 0 To b              'Iterate the array
+        lastRow = sh2.Range("A" & Rows.Count).End(xlUp).Row 'conteo de columna
+        Cells(lastRow + 1, 1) = a(i)
+        'Debug.Print (a(i) & " - " & lastRow)      'Print key
+    Next
+
+    sh2.Cells(1, 2).Value = "SLA" 'Donde va el titulo
+            sh2.Cells(1, 2).Font.Bold = True 'Donde va el titulo en negrita
+
+    sh2.Cells(1, 3).Value = "Reviewer" 'Donde va el titulo
+            sh2.Cells(1, 3).Font.Bold = True 'Donde va el titulo en negrita
+
+    sh2.Cells(1, 4).Value = "Observaciones" 'Donde va el titulo
+            sh2.Cells(1, 4).Font.Bold = True 'Donde va el titulo en negrita
+        
+    lastRow = sh2.Range("A" & Rows.Count).End(xlUp).Row
+    For i = 2 To lastRow
+    
+    Cells(i, 2) = dict(sh2.Cells(i, 1).Value)
+    
+    Cells(i, 3) = dict2(sh2.Cells(i, 1).Value)
+    
+    Next i
+    
+  
+    Columns.AutoFit
+    Rows.AutoFit
+    'Destroy object variables
+    Set dict = Nothing
+    Set dict2 = Nothing
+    Debug.Print ("----------Termino Dictionary---------")
+    Worksheets("Base").Activate
+End Sub
+
+
+
+Sub limpiar()
+Worksheets("Base").Activate
+Rows("6:20000").Delete
+End Sub
